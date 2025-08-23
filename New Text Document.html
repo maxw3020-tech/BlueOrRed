@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Choose a Door Game - Streak Mode!</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 50px;
+    color: #fff;
+    transition: background 0.5s ease;
+    min-height: 100vh;
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+  }
+  #starfield {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: -1;
+    pointer-events: none;
+  }
+  #doors {
+    display: flex;
+    justify-content: center;
+    gap: 50px;
+    margin-top: 50px;
+  }
+  .door {
+    width: 150px;
+    height: 300px;
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+  }
+  #door1 { background: linear-gradient(to bottom, #3498db, #2980b9); box-shadow: 0 0 20px rgba(52,152,219,0.6), 0 10px 20px rgba(0,0,0,0.5); }
+  #door2 { background: linear-gradient(to bottom, #e74c3c, #c0392b); box-shadow: 0 0 20px rgba(231,76,60,0.6), 0 10px 20px rgba(0,0,0,0.5); }
+
+  .door:hover { transform: scale(1.05); box-shadow: 0 15px 25px rgba(0,0,0,0.7); }
+  .door:before {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 28px; font-weight: bold; pointer-events: none;
+    text-shadow: 2px 2px 5px rgba(0,0,0,0.7); color: #fff;
+  }
+  #door1:before { content: 'Blue'; }
+  #door2:before { content: 'Red'; }
+
+  .disabled { pointer-events: none; opacity: 0.4; }
+
+  #message {
+    margin-top: 30px; font-size: 24px; font-weight: bold;
+    transition: all 0.5s ease; min-height: 34px;
+  }
+
+  .money-counter {
+    display: inline-block;
+    background: rgba(0,0,0,0.3);
+    padding: 15px 30px;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    margin: 10px;
+    font-size: 20px;
+    color: #ffdd57;
+    font-weight: bold;
+    border: 2px solid #ffdd57;
+    transition: all 0.3s ease;
+  }
+  .money-counter span {
+    font-size: 24px;
+    color: #fff;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+  }
+
+  .jackpot {
+    color: #ffdd57 !important;
+    text-shadow: 0 0 10px #ffdd57, 0 0 20px #ffaa00, 0 0 40px #ff8800;
+    animation: jackpotGlow 1s infinite alternate;
+  }
+  @keyframes jackpotGlow {
+    from { text-shadow: 0 0 10px #ffdd57, 0 0 20px #ffaa00; }
+    to { text-shadow: 0 0 30px #ffdd57, 0 0 50px #ff6600; }
+  }
+
+  .win { color: #00ff00; font-size: 28px; animation: pulse 0.5s infinite alternate; }
+  .lose { color: #ff0000; font-size: 28px; animation: shake 0.3s; }
+
+  @keyframes pulse { 0% {transform: scale(1);} 100% {transform: scale(1.2);} }
+  @keyframes shake {
+    0%{transform:translateX(0);}25%{transform:translateX(-5px);}50%{transform:translateX(5px);}75%{transform:translateX(-5px);}100%{transform:translateX(0);}
+  }
+
+  /* Jackpot FX */
+  @keyframes jackpotExplosion {
+    0% { background: radial-gradient(circle, #ffdd57, #ffaa00, #ff0000); }
+    100% { background: #000; }
+  }
+  .coin {
+    position: fixed;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: gold;
+    box-shadow: 0 0 10px #ffdd57;
+    animation: fall 2s linear forwards;
+    z-index: 999;
+  }
+  @keyframes fall { to { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+
+  button {
+    background: linear-gradient(145deg, #444, #222);
+    color: #fff; border: none; padding: 10px 20px; margin: 5px;
+    border-radius: 8px; font-size: 16px; cursor: pointer;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: all 0.3s ease;
+  }
+  button:hover { background: linear-gradient(145deg, #666, #333); transform: scale(1.05); }
+
+  #streakDisplay {
+    margin-top: 20px; font-size: 22px; font-weight: bold; color: #00ffff;
+    text-shadow: 0 0 10px #00ffff, 0 0 20px #0088ff;
+    animation: glow 1.5s infinite alternate;
+  }
+  @keyframes glow { from { text-shadow: 0 0 5px #00ffff, 0 0 10px #0088ff; } to { text-shadow: 0 0 20px #00ffff, 0 0 40px #0088ff; } }
+
+  #highestStreakDisplay {
+    margin-top: 10px; font-size: 20px; font-weight: bold; color: #ffdd57;
+    text-shadow: 0 0 10px #ffdd57, 0 0 20px #ffaa00;
+  }
+
+  #saveStreakOptions {
+    display: none;
+    margin-top: 20px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid #ffdd57;
+    border-radius: 10px;
+    padding: 15px;
+    width: 360px;
+    margin-left: auto; margin-right: auto;
+  }
+  /* Reset button */
+  #resetBtn {
+    position: fixed; top: 20px; right: 20px; z-index: 10;
+    background: #222; color: #ffdd57; border: 2px solid #ffdd57;
+    border-radius: 8px; padding: 10px 20px; font-size: 16px;
+    cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    transition: all 0.3s ease;
+  }
+  #resetBtn:hover { background: #444; color: #fff; }
+</style>
+</head>
+<body>
+  <canvas id="starfield"></canvas>
+  <button id="resetBtn">🔄 Reset Save Data</button>
+  <h1>Choose a Door Game - Streak Mode!</h1>
+  <div class="money-counter">Total Balance: $<span id="totalBalance">0</span></div>
+  <div class="money-counter">Current Reward: $<span id="currentRewardDisplay">0</span></div>
+
+  <div id="doors">
+    <div id="door1" class="door" data-door="1"></div>
+    <div id="door2" class="door" data-door="2"></div>
+  </div>
+
+  <div id="message"></div>
+  <div id="streakDisplay">🔥 Streak: <span id="streak">0</span></div>
+  <div id="highestStreakDisplay">🏆 Highest Streak: <span id="highestStreak">0</span></div>
+
+  <div id="options" style="display:none; margin-top:20px;">
+    <p>Do you wish to continue or back out?</p>
+    <button id="continueBtn">Continue</button>
+    <button id="backOutBtn">Back Out</button>
+  </div>
+
+  <div id="saveStreakOptions">
+    <p>Streak lost! Pay $<span id="saveCost">0</span> to save your streak?</p>
+    <button id="paySaveBtn">Pay & Save Streak</button>
+    <button id="loseStreakBtn">Lose Streak</button>
+  </div>
+
+  <audio id="winSound" src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3"></audio>
+  <audio id="loseSound" src="https://www.soundjay.com/button/sounds/button-10.mp3"></audio>
+  <audio id="jackpotSound" src="https://www.soundjay.com/misc/sounds/cash-register-01.mp3"></audio>
+
+  <script>
+    // --- Starfield Animation ---
+    const canvas = document.getElementById('starfield');
+    const ctx = canvas.getContext('2d');
+    let stars = [];
+    function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    function createStars() {
+      stars = [];
+      for (let i = 0; i < 150; i++) {
+        stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.5 + 0.5, twinkle: Math.random() * Math.PI * 2, speed: Math.random() * 0.02 + 0.01 });
+      }
+    }
+    function drawStars() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let star of stars) {
+        star.twinkle += star.speed;
+        const alpha = 0.7 + 0.3 * Math.sin(star.twinkle);
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+        ctx.fill();
+      }
+    }
+    function animateStars() { drawStars(); requestAnimationFrame(animateStars); }
+    window.addEventListener('resize', () => { resizeCanvas(); createStars(); });
+    resizeCanvas(); createStars(); animateStars();
+
+    // --- State ---
+    let totalBalance = parseInt(localStorage.getItem('totalBalance')) || 0;
+    let streak = parseInt(localStorage.getItem('streak')) || 0;
+    let currentReward = parseInt(localStorage.getItem('currentReward')) || randReward();
+    let highestStreak = parseInt(localStorage.getItem('highestStreak')) || 0;
+    let doorsEnabled = true;
+
+    // New: track last loss profile & computed save cost for identity-specific penalties
+    let lastLossProfile = null;
+    let lastSaveCost = 0;
+
+    // --- Door Identity Profiles ---
+    // Blue = safer; Red = risky
+    const doorProfiles = {
+      1: { name: 'Blue',  winChance: 0.6, multiplierScale: 0.9, jackpotChance: 0.01, jackpotBonusScale: 0.8, saveCostFactor: 0.5, lossStreakRetention: 0.5 },
+      2: { name: 'Red',   winChance: 0.4, multiplierScale: 1.15, jackpotChance: 0.03, jackpotBonusScale: 1.3, saveCostFactor: 2.0, lossStreakRetention: 0.0 }
+    };
+    const BASE_SAVE_COST = 50;
+
+    // --- Helpers ---
+    function randReward() {
+      const r = Math.random();
+      if (r < 0.99) return Math.floor(Math.random() * 250) + 1; // 99%: 1–250
+      return Math.floor(Math.random() * 250) + 250;              // 1%: 250–500
+    }
+
+    function saveData() {
+      localStorage.setItem('totalBalance', totalBalance);
+      localStorage.setItem('streak', streak);
+      localStorage.setItem('currentReward', currentReward);
+      localStorage.setItem('highestStreak', highestStreak);
+    }
+
+    function resetData() {
+      totalBalance = 0;
+      streak = 0;
+      currentReward = randReward();
+      highestStreak = 0;
+      lastLossProfile = null;
+      lastSaveCost = 0;
+      saveData();
+      updateDisplay();
+      enableDoors();
+      const msg = document.getElementById('message');
+      msg.textContent = '';
+      msg.className = '';
+    }
+
+    function updateDisplay() {
+      const rewardDisplay = document.getElementById('currentRewardDisplay');
+      rewardDisplay.textContent = currentReward;
+      rewardDisplay.classList.remove('jackpot');
+      if (currentReward >= 250) rewardDisplay.classList.add('jackpot');
+      document.getElementById('totalBalance').textContent = totalBalance;
+      document.getElementById('streak').textContent = streak;
+      document.getElementById('highestStreak').textContent = highestStreak;
+      saveData();
+    }
+
+    function disableDoors() { doorsEnabled = false; document.querySelectorAll('.door').forEach(d => d.classList.add('disabled')); }
+    function enableDoors()  { doorsEnabled = true;  document.querySelectorAll('.door').forEach(d => d.classList.remove('disabled')); }
+
+    function playSound(win) { const s = win ? winSound : loseSound; try { s.currentTime = 0; s.play(); } catch (e) {} }
+    function flashRedScreen() { document.body.style.background = 'radial-gradient(circle, #111, #222, #000)'; setTimeout(() => document.body.style.background = '#000', 1000); }
+
+    function triggerJackpotEffect() {
+      document.body.style.animation = 'jackpotExplosion 1s ease';
+      setTimeout(() => { document.body.style.animation = ''; }, 1000);
+      try { jackpotSound.currentTime = 0; jackpotSound.play(); } catch (e) {}
+      for (let i = 0; i < 20; i++) {
+        const coin = document.createElement('div');
+        coin.className = 'coin';
+        coin.style.left = Math.random() * window.innerWidth + 'px';
+        coin.style.top = '-20px';
+        document.body.appendChild(coin);
+        setTimeout(() => coin.remove(), 2000);
+      }
+    }
+
+    function getMultiplierForStreak(s) {
+      if (s >= 1 && s <= 3) return 2;
+      if (s >= 4 && s <= 6) return 1.8;
+      if (s >= 7 && s <= 10) return 1.5;
+      return 1.2; // 11+
+    }
+
+    function calculateReward(current, s, profile) {
+      const baseMult = getMultiplierForStreak(s);
+      const scaledMult = Math.max(1.0, baseMult * (profile?.multiplierScale || 1));
+      let newReward = Math.floor(current * scaledMult);
+      let jackpotBonus = 0;
+      const jpChance = profile?.jackpotChance ?? 0.02;
+      if (Math.random() < jpChance) {
+        const scale = profile?.jackpotBonusScale ?? 1;
+        const minBonus = Math.floor(500 * scale);
+        const maxBonus = Math.floor(1000 * scale);
+        jackpotBonus = Math.floor(Math.random() * (maxBonus - minBonus + 1)) + minBonus;
+        newReward += jackpotBonus;
+      }
+      return { newReward, jackpotBonus, scaledMult };
+    }
+
+    function computeSaveCost(s, profile) {
+      const factor = profile?.saveCostFactor ?? 1;
+      return Math.max(10, Math.ceil(s * BASE_SAVE_COST * factor));
+    }
+
+    function chooseDoor(door) {
+      if (!doorsEnabled) return;
+      document.getElementById('saveStreakOptions').style.display = 'none';
+      document.getElementById('options').style.display = 'none';
+
+      const profile = doorProfiles[door];
+      const msg = document.getElementById('message');
+
+      const isWin = Math.random() < (profile?.winChance ?? 0.5);
+
+      if (isWin) {
+        streak++;
+        if (streak > highestStreak) highestStreak = streak;
+        const { newReward, jackpotBonus, scaledMult } = calculateReward(currentReward, streak, profile);
+        currentReward = newReward;
+
+        let text = `🎉 ${profile.name} win! (multiplier ×${scaledMult.toFixed(2)}) Your reward is now $${currentReward} (Streak: ${streak}). Continue or Back Out?`;
+        if (jackpotBonus > 0) {
+          text += ` 🎰 JACKPOT BONUS! +$${jackpotBonus}`;
+          triggerJackpotEffect();
+          document.getElementById('currentRewardDisplay').classList.add('jackpot');
+        }
+        msg.textContent = text;
+        msg.className = 'win';
+        playSound(true);
+        document.body.style.background = '#000';
+        document.getElementById('options').style.display = 'block';
+        disableDoors();
+      } else {
+        playSound(false);
+        flashRedScreen();
+        msg.textContent = `❌ ${profile.name} loss!`;
+        msg.className = 'lose';
+        disableDoors();
+
+        // store identity-specific penalty parameters for the upcoming save/lose decision
+        lastLossProfile = profile;
+        lastSaveCost = computeSaveCost(streak, profile);
+
+        if (streak > 0) {
+          document.getElementById('saveCost').textContent = lastSaveCost;
+          document.getElementById('saveStreakOptions').style.display = 'block';
+        } else {
+          setTimeout(() => {
+            // On zero-streak losses, just reset reward (identity has no effect here)
+            streak = 0; currentReward = randReward();
+            msg.textContent = ''; msg.className = '';
+            enableDoors(); updateDisplay();
+          }, 1000);
+        }
+      }
+      updateDisplay();
+    }
+
+    function saveStreak(accept) {
+      const msg = document.getElementById('message');
+      const profile = lastLossProfile; // may be null if misclicked, guard below
+      const cost = profile ? lastSaveCost : computeSaveCost(streak, null);
+      document.getElementById('saveStreakOptions').style.display = 'none';
+
+      if (accept) {
+        if (totalBalance >= cost) {
+          totalBalance -= cost;
+          msg.textContent = `💸 Streak saved for $${cost}. Current streak: ${streak}. Try again!`;
+          msg.className = 'win';
+          enableDoors();
+        } else {
+          // treat as not saved path
+          handleLoseStreak(msg, profile);
+        }
+      } else {
+        handleLoseStreak(msg, profile);
+      }
+      updateDisplay();
+    }
+
+    function handleLoseStreak(msg, profile) {
+      const retention = profile?.lossStreakRetention ?? 0;
+      if (retention > 0 && streak > 0) {
+        const oldStreak = streak;
+        streak = Math.floor(streak * retention);
+        currentReward = Math.max(1, Math.floor(currentReward * 0.5));
+        msg.textContent = `🛡️ ${profile.name} softened the blow. Streak drops from ${oldStreak} → ${streak}. Reward reduced to $${currentReward}.`;
+        msg.className = 'lose';
+        enableDoors();
+      } else {
+        streak = 0; currentReward = randReward();
+        msg.textContent = '❌ Streak lost!'; msg.className = 'lose';
+        enableDoors();
+      }
+    }
+
+    function continueGame(keepGoing) {
+      const msg = document.getElementById('message');
+      document.getElementById('options').style.display = 'none';
+      if (keepGoing) {
+        msg.textContent = `🚀 Continuing! Choose a door to try to grow $${currentReward}…`;
+        msg.className = '';
+        document.body.style.background = '#000';
+        enableDoors();
+      } else {
+        totalBalance += currentReward;
+        msg.textContent = `💰 You backed out and banked $${currentReward}. Total Balance: $${totalBalance}`;
+        msg.className = 'win';
+        streak = 0; currentReward = randReward();
+        document.body.style.background = '#000';
+        enableDoors(); updateDisplay();
+      }
+    }
+
+    // --- Wire up UI (no inline handlers, avoids scope issues) ---
+    document.getElementById('door1').addEventListener('click', () => chooseDoor(1));
+    document.getElementById('door2').addEventListener('click', () => chooseDoor(2));
+    document.getElementById('continueBtn').addEventListener('click', () => continueGame(true));
+    document.getElementById('backOutBtn').addEventListener('click', () => continueGame(false));
+    document.getElementById('paySaveBtn').addEventListener('click', () => saveStreak(true));
+    document.getElementById('loseStreakBtn').addEventListener('click', () => saveStreak(false));
+    document.getElementById('resetBtn').addEventListener('click', resetData);
+
+    // --- Init ---
+    updateDisplay();
+
+    // --- Dev Tests (console) ---
+    (function runDevTests(){
+      const approxEqual = (a,b,eps=1e-9)=>Math.abs(a-b)<eps;
+      console.group('Choose-a-Door: unit tests');
+      // Multiplier mapping (base)
+      console.assert(approxEqual(getMultiplierForStreak(1),2), 'Streak 1->3 should be x2');
+      console.assert(approxEqual(getMultiplierForStreak(3),2), 'Streak 3 should be x2');
+      console.assert(approxEqual(getMultiplierForStreak(4),1.8), 'Streak 4->6 should be x1.8');
+      console.assert(approxEqual(getMultiplierForStreak(6),1.8), 'Streak 6 should be x1.8');
+      console.assert(approxEqual(getMultiplierForStreak(7),1.5), 'Streak 7->10 should be x1.5');
+      console.assert(approxEqual(getMultiplierForStreak(10),1.5), 'Streak 10 should be x1.5');
+      console.assert(approxEqual(getMultiplierForStreak(11),1.2), 'Streak 11+ should be x1.2');
+
+      // Identity: save cost math
+      const blue = doorProfiles[1], red = doorProfiles[2];
+      console.assert(computeSaveCost(4, blue) === Math.max(10, Math.ceil(4*50*0.5)), 'Blue save cost factor works');
+      console.assert(computeSaveCost(4, red)  === Math.max(10, Math.ceil(4*50*2.0)), 'Red save cost factor works');
+
+      // Reward calc scaling (no jackpot):
+      const _rand = Math.random; Math.random = () => 0.5; // disable jackpot
+      // streak 5 -> base 1.8, blue scale 0.9 => 1.62x
+      let r1 = calculateReward(100, 5, blue); 
+      console.assert(r1.newReward === 162 && r1.jackpotBonus === 0, 'Blue scaled multiplier (1.62x)');
+      // red scale 1.15 => 2.07x
+      let r2 = calculateReward(100, 5, red);
+      console.assert(r2.newReward === 207 && r2.jackpotBonus === 0, 'Red scaled multiplier (2.07x)');
+      Math.random = _rand;
+
+      console.groupEnd();
+    })();
+  </script>
+</body>
+</html>
